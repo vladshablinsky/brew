@@ -147,6 +147,11 @@ class VCSDownloadStrategy < AbstractDownloadStrategy
     end
   end
 
+  def fetch_last_commit
+    fetch
+    last_commit
+  end
+
   def cached_location
     @clone
   end
@@ -756,6 +761,39 @@ class GitDownloadStrategy < VCSDownloadStrategy
   end
 end
 
+class GitHubGitDownloadStrategy < GitDownloadStrategy
+  def initialize(name, resource)
+    super
+    if @url =~ %r{^https?://github\.com/([^/]+)/([^/]+)\.git$}
+      @user = $1
+      @repo = $2
+    end
+  end
+
+  def github_last_commit
+    return if ENV["HOMEBREW_NO_GITHUB_API"]
+    args = []
+    args << "https://api.github.com/repos/#{@user}/#{@repo}/commits/#{@ref}"
+    args << "-I" << "-H" << "Accept: application/vnd.github.v3.sha"
+
+    curl_output(*args).first[/^ETag: \"(\h+)\"/, 1]
+  end
+
+  # TODO probably return unless head? at the begining
+  def fetch_last_commit
+    commit = begin
+      github_last_commit
+    rescue Exception
+      super
+    end
+
+    commit ||= super
+
+    version.update_commit(commit) if head? && commit
+    commit
+  end
+end
+
 class CVSDownloadStrategy < VCSDownloadStrategy
   def initialize(name, resource)
     super
@@ -957,6 +995,8 @@ class DownloadStrategyDetector
 
   def self.detect_from_url(url)
     case url
+    when %r{^https?://github\.com/[^/]+/[^/]+\.git$}
+      GitHubGitDownloadStrategy
     when %r{^https?://.+\.git$}, %r{^git://}
       GitDownloadStrategy
     when %r{^https?://www\.apache\.org/dyn/closer\.cgi}, %r{^https?://www\.apache\.org/dyn/closer\.lua}
