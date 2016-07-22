@@ -28,10 +28,18 @@ module Homebrew
 
   def print_outdated(formulae)
     verbose = ($stdout.tty? || ARGV.verbose?) && !ARGV.flag?("--quiet")
+    fetch_head = ARGV.fetch_head?
 
-    formulae.select(&:outdated?).each do |f|
+    formulae.select do |f|
+      f.outdated?(:fetch_head => fetch_head)
+    end.each do |f|
       if verbose
-        puts "#{f.full_name} (#{f.outdated_versions*", "} < #{f.pkg_version})"
+        outdated_versions = f.outdated_versions(:fetch_head => fetch_head)
+        if outdated_versions.any? && f.head? && !fetch_head
+          puts "#{f.full_name} (#{outdated_versions*", "}) HEAD update available"
+        else
+          puts "#{f.full_name} (#{outdated_versions*", "}) < #{f.pkg_version}"
+        end
       else
         puts f.full_name
       end
