@@ -119,7 +119,7 @@ class GitDownloadStrategyTests < Homebrew::TestCase
       touch "LICENSE"
       git_commit_all
     end
-    assert_equal "c50c79b", @strategy.last_commit
+    assert_equal "c50c79b9573c9482b9178a1882695fbbcd36fe7d", @strategy.last_commit
   end
 end
 
