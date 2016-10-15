@@ -136,7 +136,12 @@ module Homebrew
         end
 
         current = f if f.installed?
-        current ||= f.old_installed_formulae.first
+        if current.nil? && f.installed_prefixes.empty?
+          old_formula_with_current_alias = f.old_installed_formulae.first
+          if old_formula_with_current_alias && old_formula_with_current_alias.installed?
+            current ||= old_formula_with_current_alias
+          end
+        end
 
         if current
           msg = "#{current.full_name}-#{current.installed_version} already installed"
@@ -148,7 +153,7 @@ module Homebrew
           # Check if the formula we try to install is the same as installed
           # but not migrated one. If --force passed then install anyway.
           opoo "#{f.oldname} already installed, it's just not migrated"
-          puts "You can migrate formula with `brew migrate #{f}`"
+          puts "You should migrate formula with `brew migrate #{f}`"
           puts "Or you can force install it with `brew install #{f} --force`"
         else
           formulae << f
