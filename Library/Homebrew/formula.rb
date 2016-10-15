@@ -1188,10 +1188,11 @@ class Formula
   end
 
   def old_installed_formulae
+    return [] if alias_path.nil?
     # If this formula isn't the current target of the alias,
     # it doesn't make sense to say that other formulae are older versions of it
     # because we don't know which came first.
-    return [] if alias_path.nil? || installed_alias_target_changed?
+    return [] if installed_alias_target_changed?
     self.class.installed_with_alias_path(alias_path) - [self]
   end
 
