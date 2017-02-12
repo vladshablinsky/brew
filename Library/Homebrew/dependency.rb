@@ -78,6 +78,8 @@ class Dependency
       # Keep track dependencies to avoid infinite cyclic dependency recursion.
       @expand_stack ||= []
       @expand_stack.push dependent.name
+      # Keep track of already expanded dependencies.
+      @ready ||= []
 
       expanded_deps = []
 
@@ -88,14 +90,15 @@ class Dependency
         when :prune
           next
         when :skip
-          next if @expand_stack.include? dep.name
+          next if @expand_stack.include?(dep.name) || @ready.include?(dep.name)
           expanded_deps.concat(expand(dep.to_formula, &block))
         when :keep_but_prune_recursive_deps
           expanded_deps << dep
         else
-          next if @expand_stack.include? dep.name
+          next if @expand_stack.include?(dep.name) || @ready.include?(dep.name)
           expanded_deps.concat(expand(dep.to_formula, &block))
           expanded_deps << dep
+          @ready << dep
         end
       end
 
