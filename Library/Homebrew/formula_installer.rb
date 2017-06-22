@@ -437,6 +437,7 @@ class FormulaInstaller
         elsif req.build? && install_bottle_for_dependent
           Requirement.prune
         elsif install_requirement_formula?(req_dependency, req, install_bottle_for_dependent)
+          req_dependency.use_closest_for_dependency_upgrade_spec!
           deps.unshift(req_dependency)
           formulae.unshift(req_dependency.to_formula)
           Requirement.prune
