@@ -1,4 +1,5 @@
 require "dependable"
+require "tab"
 
 # A dependency on another Homebrew formula.
 class Dependency
@@ -29,8 +30,48 @@ class Dependency
     name.hash ^ tags.hash
   end
 
+  def tap
+    CoreTap.instance
+  end
+
+  # The best spec we can upgrade the {Formula} to so it can satisfy dependency.
+  def closest_spec_for_dependency_upgrade_sym
+    rack = HOMEBREW_CELLAR.join(name.split("/").last)
+    return :stable unless rack.exist?
+
+    formula = Formulary.from_rack(rack)
+    return :stable if formula.tap != tap
+
+    active_spec_sym = formula.active_spec_sym
+    return active_spec_sym if active_spec_sym == :stable
+
+    installed_keg = formula.prefix
+    return active_spec_sym unless installed_keg.join(Tab::FILENAME).exist?
+
+    installed_tab = Tab.for_keg(installed_keg)
+    return :stable if installed_tab.version_scheme < formula.version_scheme
+
+    if active_spec_sym == :devel && formula.stable.version > installed_tab.devel_version
+      return :stable
+    end
+
+    active_spec_sym
+  end
+
+  def use_closest_for_dependency_upgrade_spec!
+    @spec = closest_spec_for_dependency_upgrade_sym
+  end
+
+  def use_spec!(spec)
+    @spec = spec
+  end
+
+  def spec
+    @spec || :stable
+  end
+
   def to_formula
-    formula = Formulary.factory(name)
+    formula = Formulary.factory(name, spec)
     formula.build = BuildOptions.new(options, formula.options)
     formula
   end
@@ -82,6 +123,8 @@ class Dependency
 
       deps.each do |dep|
         next if dependent.name == dep.name
+
+        dep.use_closest_for_dependency_upgrade_spec!
 
         case action(dependent, dep, &block)
         when :prune
@@ -136,7 +179,9 @@ class Dependency
         dep  = deps.first
         tags = merge_tags(deps)
         option_names = deps.flat_map(&:option_names).uniq
-        dep.class.new(name, tags, dep.env_proc, option_names)
+        result = dep.class.new(name, tags, dep.env_proc, option_names)
+        result.use_spec!(dep.spec)
+        result
       end
     end
 
