@@ -92,6 +92,70 @@ describe Dependency do
     end
   end
 
+  it "finds closest spec to upgrade to" do
+    dep = described_class.new("foo", [:build])
+    f = formula("foo") { url "foo-1.0" }
+    stub_formula_loader f
+    allow(Formulary).to receive(:loader_for).with("homebrew/core/foo", from: :keg).and_return(double(get_formula: f))
+
+    HOMEBREW_CELLAR.join("foo/1.0").mkpath
+    compiler = DevelopmentTools.default_compiler
+    stdlib = :libcxx
+    tab = Tab.create(f, compiler, stdlib)
+    tab.write
+
+    expect(dep.closest_spec_for_dependency_upgrade_sym).to eq(:stable)
+  end
+
+  it "returns stable closest spec to upgrade to since taps differ" do
+    dep = described_class.new("foo", [:build])
+    f = formula("foo") do
+      url "foo-1.0"
+      version "1.0"
+      devel do
+        version "1.2"
+      end
+    end
+    stub_formula_loader f
+    f_tap = formula("foo") do
+      url "foo-1.0"
+    end
+    allow(f_tap).to receive(:tap).and_return(Tap.fetch("user/repo"))
+    allow(Formulary).to receive(:loader_for).with("user/repo/foo", from: :keg).and_return(double(get_formula: f_tap))
+
+    HOMEBREW_CELLAR.join("foo/1.1").mkpath
+    tab = Tab.empty
+    tab.tabfile = HOMEBREW_CELLAR/"foo/1.1/INSTALL_RECEIPT.json"
+    tab["source"]["tap"] = "user/repo"
+    tab["spec"] = "devel"
+    tab["versions"] = { "stable" => "1.0", "devel" => "1.1", "head" => "HEAD", "version_scheme" => 0 }
+    tab.write
+
+    expect(dep.closest_spec_for_dependency_upgrade_sym).to eq(:stable)
+  end
+
+  it "returns devel closest spec to upgrade" do
+    dep = described_class.new("foo", [:build])
+    f = formula("foo") do
+      url "foo-1.0"
+      version "1.0"
+      devel do
+        url "foo-1.2"
+        version "1.2"
+      end
+    end
+    stub_formula_loader f
+
+    HOMEBREW_CELLAR.join("foo/1.1").mkpath
+    tab = Tab.empty
+    tab.tabfile = HOMEBREW_CELLAR/"foo/1.1/INSTALL_RECEIPT.json"
+    tab["source"]["spec"] = "devel"
+    tab["versions"] = { "stable" => "1.0", "devel" => "1.1", "head" => "HEAD", "version_scheme" => 0 }
+    tab.write
+
+    expect(dep.closest_spec_for_dependency_upgrade_sym).to eq(:devel)
+  end
+
   specify "equality" do
     foo1 = described_class.new("foo")
     foo2 = described_class.new("foo")

@@ -118,6 +118,15 @@ describe Dependency do
     expect(described_class.expand(formula, [bar, baz])).to eq([bar, baz])
   end
 
+  it "resolves returns devel dep if closest spec is devel" do
+    foo = build_dep(:foo, [:build])
+    allow(foo).to receive(:closest_spec_for_dependency_upgrade_sym).and_return(:devel)
+
+    f = double(name: "f", deps: [foo])
+    expect(described_class.expand(f)).to eq([foo])
+    expect(foo.spec).to eq(:devel)
+  end
+
   it "doesn't raise an error when a dependency is cyclic" do
     foo = build_dep(:foo)
     bar = build_dep(:bar, [], [foo])
