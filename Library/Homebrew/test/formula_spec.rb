@@ -107,6 +107,22 @@ describe Formula do
     end
   end
 
+  describe "#determine_active_spec" do
+    let(:f) do
+      formula do
+        url "foo-1.0"
+      end
+    end
+
+    it "returns stable if no head defined" do
+      expect(f.send(:determine_active_spec, :devel)).to eq(f.stable)
+    end
+
+    it "returns stable if no head defined" do
+      expect(f.send(:determine_active_spec, :head)).to eq(f.stable)
+    end
+  end
+
   example "installed alias with core" do
     f = formula do
       url "foo-1.0"
