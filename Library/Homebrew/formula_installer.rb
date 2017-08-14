@@ -111,11 +111,15 @@ class FormulaInstaller
       return false
     end
 
+    stable_deps_needed = formula.deps.reject do |dep|
+      dep.closest_spec_for_dependency_upgrade_sym == :stable
+    end.map(&:name)
+
     if formula.deps.any? { |dep| dep.closest_spec_for_dependency_upgrade_sym != :stable }
       if install_bottle_options[:warn]
         opoo <<-EOS.undent
           Building #{formula.full_name} from source:
-            The bottle needs stable dependencies which are not installed.
+            The bottle needs stable dependencies which are not installed (#{stable_deps_needed.join(", ")}).
         EOS
       end
       return false
